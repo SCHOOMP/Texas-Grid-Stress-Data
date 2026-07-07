@@ -1,0 +1,23 @@
+# Security
+.env
+.env.*
+
+# IDEs
+.idea/
+.vscode/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# dbt artifacts
+dbt/target/
+dbt/logs/
+target/
+logs/
+
+# System files
+.DS_Store
+Thumbs.db
