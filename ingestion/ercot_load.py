@@ -15,6 +15,7 @@ try:
         port=os.getenv("POSTGRES_PORT")
     )
 
+
     print("Successfully connected to the database!")
 
     cursor = connection.cursor()
