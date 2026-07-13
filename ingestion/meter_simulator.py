@@ -12,6 +12,15 @@ DEFAULT_TEMP_C = 30.0
 TABLE = "raw.meter_telemetry"
 COLUMNS = ["ts", "meter_id", "city", "power_kw", "voltage_v"]
 
+EVENTS_TABLE = "raw.meter_events"
+EVENTS_COLUMNS = ["ts", "meter_id", "event_type", "detail"]
+
+# Per-tick transition probabilities. Small on purpose - these are rare events,
+# not steady-state odds.
+P_GO_OFFLINE = 0.0005   # online -> offline, ~0.05%, "comms lost"
+P_RECOVER = 0.05        # offline -> online, ~5%, "recovered"
+P_FAULT = 0.0002        # online -> fault, ~0.02%, "voltage anomaly"
+
 LATEST_TEMP_QUERY = """
     SELECT DISTINCT ON (city) city, temperature_c
     FROM raw.weather ORDER BY city, ts DESC;
@@ -34,6 +43,19 @@ class Meter:
         return (datetime.now(timezone.utc), self.id, self.city,
                 round(power, 3), round(voltage, 1))
 
+    def maybe_transition(self, rng):
+        now = datetime.now(timezone.utc)
+        if self.online:
+            if rng.random() < P_GO_OFFLINE:
+                self.online = False
+                return (now, self.id, "offline", "comms lost")
+            if rng.random() < P_FAULT:
+                return (now, self.id, "fault", "voltage anomaly")
+        elif rng.random() < P_RECOVER:
+            self.online = True
+            return (now, self.id, "online", "recovered")
+        return None
+
 
 def fetch_latest_temps(conn, cities):
     with conn.cursor() as cur:
@@ -55,12 +77,18 @@ def to_rows(readings):
 
 def run_tick(conn, fleet, cities, rng):
     temps = fetch_latest_temps(conn, cities)
+
+    # Lifecycle transitions run before telemetry so a meter that just went
+    # offline/online this tick is reflected in the same tick's readings.
+    events = [meter.maybe_transition(rng) for meter in fleet]
+    events = [e for e in events if e is not None]
+
     readings = [meter.step(temps[meter.city], rng) for meter in fleet]
     readings = [r for r in readings if r is not None]
 
-    rows = to_rows(readings)
-    insert_rows(conn, TABLE, COLUMNS, rows)
-    return len(rows)
+    insert_rows(conn, TABLE, COLUMNS, to_rows(readings))
+    insert_rows(conn, EVENTS_TABLE, EVENTS_COLUMNS, events)
+    return len(readings), len(events)
 
 
 def parse_args():
@@ -80,8 +108,8 @@ def main():
     conn = connect_with_retry()
     try:
         while True:
-            inserted = run_tick(conn, fleet, cities, rng)
-            print(f"Inserted {inserted} readings from {len(fleet)} meters")
+            n_readings, n_events = run_tick(conn, fleet, cities, rng)
+            print(f"Inserted {n_readings} readings, {n_events} events from {len(fleet)} meters")
             if args.once:
                 break
             time.sleep(args.interval)
