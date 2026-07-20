@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: stg_grid_conditions
+    columns:
+      - name: ts
+        data_tests: [not_null]
+      - name: region
+        data_tests: [not_null]
+
+  - name: stg_weather
+    columns:
+      - name: ts
+        data_tests: [not_null]
+      - name: city
+        data_tests: [not_null]
+
+  - name: stg_meter_telemetry
+    columns:
+      - name: ts
+        data_tests: [not_null]
+      - name: meter_id
+        data_tests: [not_null]
+
+  - name: stg_meter_events
+    columns:
+      - name: ts
+        data_tests: [not_null]
+      - name: meter_id
+        data_tests: [not_null]
+      - name: event_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['online', 'offline', 'fault']

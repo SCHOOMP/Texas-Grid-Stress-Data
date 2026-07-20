@@ -1,0 +1,27 @@
+version: 2
+
+models:
+  - name: fct_grid_strain
+    columns:
+      - name: bucket
+        data_tests: [not_null, unique]
+      - name: strain_level
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['NORMAL', 'ELEVATED', 'CRITICAL']
+
+  - name: fct_demand_weather
+    columns:
+      - name: hour
+        data_tests: [not_null]
+      - name: city
+        data_tests: [not_null]
+      - name: demand_weather_id
+        data_tests: [not_null, unique]
+
+  - name: fct_meter_health
+    columns:
+      - name: meter_id
+        data_tests: [not_null, unique]

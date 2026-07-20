@@ -15,6 +15,10 @@ clean-targets:
   - "target"
   - "dbt_packages"
 
+vars:
+  # matches TELEMETRY_INTERVAL_SECONDS in .env - keep these in sync
+  telemetry_interval_seconds: 5
+
 models:
   grid_observatory:
     staging:
